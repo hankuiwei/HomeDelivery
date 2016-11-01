@@ -1,0 +1,145 @@
+package com.lenovo.service.fragment;
+
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.drawable.GlideDrawable;
+import com.bumptech.glide.request.animation.GlideAnimation;
+import com.bumptech.glide.request.target.GlideDrawableImageViewTarget;
+import com.lenovo.service.R;
+import com.lenovo.service.Utils;
+import com.lenovo.service.activity.AboutActivity;
+import com.lenovo.service.activity.FadeBackActivity;
+import com.lenovo.service.activity.MyAttachments;
+import com.lenovo.service.activity.MyCommentActivity;
+import com.lenovo.service.activity.MyQRCodeActivity;
+import com.lenovo.service.activity.MySettingActivity;
+import com.lenovo.service.cache.SharedPrefManager;
+import com.lenovo.service.widget.CircleImageView;
+
+
+/**
+ * 我的tab页面
+ * Created by shengtao
+ * on 2016/7/26
+ * 23:48
+ */
+
+public class AtMeFragment extends BaseFragment implements View.OnClickListener {
+
+    private final String TAG = this.getClass().getSimpleName();
+    private String mQRUrl;
+
+    private boolean isSelfSelected;
+    private boolean isFirstLoad = true;
+
+    private String mheadUrl;
+    private CircleImageView mcyclerImg;
+
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        SharedPreferences sharedPreference = SharedPrefManager.getSystemSharedPref(getActivity());
+
+        mheadUrl = SharedPrefManager.getStringInSharePref(sharedPreference, SharedPrefManager.LOGIN_HEAD_IMAGE, "head_image");
+        String mPositon = SharedPrefManager.getStringInSharePref(sharedPreference, SharedPrefManager.LOGIN_POSITION_NAME, "position_name");
+        String mName = SharedPrefManager.getStringInSharePref(sharedPreference, SharedPrefManager.LOGIN_USER_NAME, "user_name");
+        mQRUrl = SharedPrefManager.getStringInSharePref(sharedPreference, SharedPrefManager.LOGIN_QRCODE_IMAGE, "qrcode_image");
+        View view = View.inflate(getActivity(), R.layout.fragment_at_me, null);
+        TextView mtxTName = (TextView) view.findViewById(R.id.mineName);
+        Log.d(TAG, "onCreateView() mheadUrl is (" + mheadUrl + ")");
+        TextView mtxTPosition = (TextView) view.findViewById(R.id.minePositionName);
+        mcyclerImg = (CircleImageView) view.findViewById(R.id.mineHead);
+//        Utils.loadImageWithGlide(getActivity(), mheadUrl, mcyclerImg, R.drawable.default_load_img);
+        if (!"user_name".equals(mName)) {
+            mtxTName.setText(mName);
+        }
+        if (!"position_name".equals(mPositon)) {
+            mtxTPosition.setText(mPositon);
+        }
+        view.findViewById(R.id.mineQRCode).setOnClickListener(this);
+        view.findViewById(R.id.mineCommentRel).setOnClickListener(this);
+        view.findViewById(R.id.mineAppendixRel).setOnClickListener(this);
+        view.findViewById(R.id.mineSettingRel).setOnClickListener(this);
+        view.findViewById(R.id.mineFeedbackRel).setOnClickListener(this);
+        view.findViewById(R.id.mineExitBtn).setOnClickListener(this);
+        view.findViewById(R.id.mineAbout).setOnClickListener(this);
+        return view;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        if (this.isHidden()) {
+            return;
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+    }
+
+    /**
+     * tab切换要用，预留
+     *
+     * @param isVisibleToUser
+     */
+    @Override
+    public void setUserVisibleHint(boolean isVisibleToUser) {
+        super.setUserVisibleHint(isVisibleToUser);
+        if (isVisibleToUser) {
+
+        }
+    }
+
+
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.mineQRCode:
+                MyQRCodeActivity.toQRCode(getActivity(), mQRUrl);
+                //Log.d(TAG,"onClick is mine_QR_code");
+                break;
+            case R.id.mineCommentRel:
+                MyCommentActivity.toComment(getActivity());
+                //Log.d(TAG,"onClick is mine_Comment_Rel");
+                break;
+            case R.id.mineAppendixRel:
+                Log.d(TAG, "onClick is mine_appendix_Rel");
+                MyAttachments.openAttachmentActivity(getContext());
+                break;
+            case R.id.mineSettingRel:
+                MySettingActivity.toSet(getActivity());
+                //Log.d(TAG,"onClick is mine_setting_Rel");
+                break;
+            case R.id.mineFeedbackRel:
+                FadeBackActivity.openActivity(getActivity());
+                break;
+            case R.id.mineAbout:
+                AboutActivity.openAboutActivity(getActivity());
+                break;
+            case R.id.mineExitBtn:
+                Utils.exitToLogin(getContext());
+                Log.d(TAG, "onClick is mine_exit_btn");
+                break;
+        }
+    }
+
+    @Override
+    public void setSelected(boolean selected) {
+        isSelfSelected = selected;
+        if (isSelfSelected && isFirstLoad) {
+            Utils.loadImageWithGlide(getActivity(), mheadUrl, mcyclerImg, R.drawable.default_load_img);
+            isFirstLoad = false;
+        }
+    }
+}

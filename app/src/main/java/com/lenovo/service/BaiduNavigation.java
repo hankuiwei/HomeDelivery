@@ -1,0 +1,524 @@
+package com.lenovo.service;
+
+import android.*;
+import android.annotation.TargetApi;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+//import android.support.v7.app.AlertDialog;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.net.Uri;
+import android.os.Build;
+import android.util.Log;
+import android.widget.Toast;
+
+import com.baidu.location.BDLocation;
+import com.baidu.location.BDLocationListener;
+import com.baidu.mapapi.model.LatLng;
+import com.baidu.mapapi.navi.BaiduMapAppNotSupportNaviException;
+import com.baidu.mapapi.navi.BaiduMapNavigation;
+import com.baidu.mapapi.navi.NaviParaOption;
+//import com.baidu.mapapi.search.core.SearchResult;
+//import com.baidu.mapapi.search.geocode.GeoCodeOption;
+//import com.baidu.mapapi.search.geocode.GeoCodeResult;
+//import com.baidu.mapapi.search.geocode.GeoCoder;
+//import com.baidu.mapapi.search.geocode.OnGetGeoCoderResultListener;
+//import com.baidu.mapapi.search.geocode.ReverseGeoCodeResult;
+import com.baidu.mapapi.utils.OpenClientUtil;
+//import com.baidu.navisdk.adapter.BNOuterTTSPlayerCallback;
+//import com.baidu.navisdk.adapter.BNRoutePlanNode;
+//import com.baidu.navisdk.adapter.BNRoutePlanNode.CoordinateType;
+//import com.baidu.navisdk.adapter.BNaviSettingManager;
+//import com.baidu.navisdk.adapter.BaiduNaviManager;
+import com.baidu.mapapi.utils.route.BaiduMapRoutePlan;
+import com.baidu.mapapi.utils.route.RouteParaOption;
+import com.lenovo.service.activity.HomeActivity;
+import com.lenovo.service.services.LocationService;
+
+import java.io.File;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+
+import static android.support.v4.app.ActivityCompat.requestPermissions;
+import static android.support.v4.app.ActivityCompat.shouldShowRequestPermissionRationale;
+
+/**
+ * Created by hankw on 16-9-5.
+ */
+public class BaiduNavigation  {
+
+    private final String TAG = getClass().getSimpleName();
+    public static List<Activity> activityList = new LinkedList<Activity>();
+    private Context mcontext;
+    private double elongitude;
+    private double elatitude;
+    private String maddress;
+    private String permissionInfo;
+    private final int SDK_PERMISSION_REQUEST = 127;
+    //GeoCoder mSearch = null; // 搜索模块
+    private static final String APP_FOLDER_NAME = "BNSDKSimpleDemo";
+    private String mSDCardPath = null;
+    private String authinfo = null;
+    private LocationService locService;
+    private Activity mactivity;
+    public static final String ROUTE_PLAN_NODE = "routePlanNode";
+   // private CoordinateType coType = CoordinateType.BD09LL;
+    private boolean isLocation;
+
+    public BaiduNavigation(Context context,Activity activity, String address) {
+        this.mcontext = context;
+        this.mactivity = activity;
+       /* this.elongitude = lon;
+        this.elatitude = lat;*/
+        this.maddress = address.trim();
+        getPersimmions();
+        locService = ((ServiceApplication)mactivity.getApplication()).locationService;
+        locService.registerListener(listener);
+        locService.setLocationOption(locService.getDefaultLocationClientOption());
+        locService.start();
+        ((HomeActivity)mactivity).showLoadingDialog();
+        Log.d(TAG,"BaiduNavigation() is starting ");
+    }
+
+    public BaiduNavigation(Activity activity, double lon , double lat, String address) {
+        //this.mcontext = context;
+        this.elongitude = lon;
+        this.elatitude = lat;
+        this.maddress = address.trim();
+        this.mactivity = activity;
+        locService = ((ServiceApplication)activity.getApplication()).locationService;
+        locService.registerListener(listener);
+        //activityList.add(activity);
+        locService.setLocationOption(locService.getDefaultLocationClientOption());
+
+        // 初始化搜索模块，注册事件监听
+       // mSearch = GeoCoder.newInstance();
+       // mSearch.setOnGetGeoCodeResultListener(this);
+        /*if (initDirs()) {
+            initNavi();
+        }*/
+
+       // initNavi();
+
+        // 打开log开关
+        //BNOuterLogUtil.setLogSwitcher(true);
+        if (elongitude == 0.0 || elatitude ==0.0) {
+
+            // Geo搜索
+            if (maddress != null || !"".equals(maddress)) {
+                //String city = maddress.substring(0,1);
+               // mSearch.geocode(new GeoCodeOption().city("").address(maddress));
+            }
+
+        } else {
+            locService.start();
+
+        }
+    }
+
+/*
+    @Override
+    public void onGetGeoCodeResult(GeoCodeResult geoCodeResult) {
+        if (geoCodeResult == null || geoCodeResult.error != SearchResult.ERRORNO.NO_ERROR) {
+            Toast.makeText(activity, "抱歉，未能找到结果,请修改地址后重试", Toast.LENGTH_LONG).show();
+            final AlertDialog.Builder builder =  new AlertDialog.Builder(activity);
+            final EditText inEdt = new EditText(activity);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                lp.setMargins(5,0,0,5);
+                inEdt.setLayoutParams(lp);
+                inEdt.setBackgroundResource(R.drawable.shape_4dpcorner_loginedit_bg);
+            builder.setTitle("请输入准确的客户地址").setIcon(android.R.drawable.ic_dialog_info)
+                    .setView(inEdt).setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    String input = inEdt.getText().toString().trim();
+                    if (input.equals("")) {
+                        Toast.makeText(activity, "搜索内容不能为空！", Toast.LENGTH_LONG).show();
+                        return;
+                    } else {
+                        //String city = input.substring(0,1);
+                        mSearch.geocode(new GeoCodeOption().city("").address(input));
+                    }
+
+                }
+            }).setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                }
+            });
+            Dialog dialog = builder.create();
+            dialog.show();
+            //return;
+        } else {
+            elatitude =  geoCodeResult.getLocation().latitude;
+            elongitude = geoCodeResult.getLocation().longitude;
+            Log.d(TAG, "onGetGeoCodeResult() == > latitude is (" + elatitude + ")");
+            Log.d(TAG, "onGetGeoCodeResult() == > longitude is (" + elongitude + ")");
+            mSearch.destroy();
+            locService.start();
+        }
+
+
+    }
+
+    @Override
+    public void onGetReverseGeoCodeResult(ReverseGeoCodeResult reverseGeoCodeResult) {
+
+    }
+*/
+
+
+    /***
+     * 定位结果回调，在此方法中处理定位结果
+     */
+    private BDLocationListener listener = new BDLocationListener() {
+
+        @Override
+        public void onReceiveLocation(BDLocation location) {
+
+            Log.d(TAG, "onReceiveLocation() is starting ");
+            // TODO Auto-generated method stub
+
+            //if (location != null && (location.getLocType() == 161 || location.getLocType() == 66) && !isLocation) {
+            if (location != null && (location.getLocType() == 161 || location.getLocType() == 66)) {
+                //Message locMsg = locHander.obtainMessage();
+                double latitude = location.getLatitude();
+                double longitude = location.getLongitude();
+
+                Log.d("LocationFilter", "handleMessage() == > latitude is (" + latitude + ")");
+                Log.d("LocationFilter", "handleMessage() == > longitude is (" + longitude + ")");
+                //routeplanToNavi(BNRoutePlanNode.CoordinateType.BD09LL,longitude,latitude);
+                locService.unregisterListener(listener);
+                locService.stop();
+                startNavi(latitude,longitude,elatitude,elongitude,maddress);
+                //routeplanToNavi(longitude,latitude,elongitude,elatitude,maddress);
+                isLocation = true;
+            } else {
+                ((HomeActivity)mactivity).dismissLoadingDialog();
+                //if (!isLocation){
+                    // TODO: 16-9-2 对定位当前位置失败进行处理
+                    Toast.makeText(mcontext, "暂时无法获取您的位置,请检查定位服务是否打开", Toast.LENGTH_SHORT).show();
+                    return;
+               // }
+
+            }
+        }
+    };
+
+
+    /*private String getSdcardDir() {
+        if (Environment.getExternalStorageState().equalsIgnoreCase(Environment.MEDIA_MOUNTED)) {
+            return Environment.getExternalStorageDirectory().toString();
+        }
+        return null;
+    }
+
+    private boolean initDirs() {
+        mSDCardPath = getSdcardDir();
+        if (mSDCardPath == null) {
+            return false;
+        }
+        File f = new File(mSDCardPath, APP_FOLDER_NAME);
+        if (!f.exists()) {
+            try {
+                f.mkdir();
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void initNavi() {
+
+        BNOuterTTSPlayerCallback ttsCallback = null;
+
+        BaiduNaviManager.getInstance().init(activity, mSDCardPath, APP_FOLDER_NAME, new BaiduNaviManager.NaviInitListener() {
+            @Override
+            public void onAuthResult(int status, String msg) {
+                if (0 == status) {
+                    authinfo = "导航key校验成功!";
+                } else {
+                    authinfo = "导航key校验失败, " + msg;
+                }
+                Log.d(TAG, authinfo);
+            }
+
+            public void initSuccess() {
+                Log.d(TAG, "initSuccess() == >百度导航引擎初始化成功");
+                initSetting();
+                //routeplanToNavi(CoordinateType.BD09LL);
+            }
+
+            public void initStart() {
+                Log.d(TAG, "initStart() == >百度导航引擎初始化开始");
+            }
+
+            public void initFailed() {
+                Log.d(TAG, "initStart() == >百度导航引擎初始化失败");
+            }
+
+
+        },  null, ttsHandler, ttsPlayStateListener);
+
+    }
+
+
+    private void initSetting(){
+        // 设置是否双屏显示
+        BNaviSettingManager.setShowTotalRoadConditionBar(BNaviSettingManager.PreViewRoadCondition.ROAD_CONDITION_BAR_SHOW_ON);
+        // 设置导航播报模式
+        BNaviSettingManager.setVoiceMode(BNaviSettingManager.VoiceMode.Veteran);
+        // 是否开启路况
+        BNaviSettingManager.setRealRoadCondition(BNaviSettingManager.RealRoadCondition.NAVI_ITS_ON);
+    }
+
+    *//**
+     * 内部TTS播报状态回传handler
+     *//*
+    private Handler ttsHandler = new Handler() {
+        public void handleMessage(Message msg) {
+            int type = msg.what;
+            switch (type) {
+                case BaiduNaviManager.TTSPlayMsgType.PLAY_START_MSG: {
+                    //showToastMsg("Handler : TTS play start");
+                    break;
+                }
+                case BaiduNaviManager.TTSPlayMsgType.PLAY_END_MSG: {
+                    //showToastMsg("Handler : TTS play end");
+                    break;
+                }
+                default :
+                    break;
+            }
+        }
+    };
+
+    *//**
+     * 内部TTS播报状态回调接口
+     *//*
+    private BaiduNaviManager.TTSPlayStateListener ttsPlayStateListener = new BaiduNaviManager.TTSPlayStateListener() {
+
+        @Override
+        public void playEnd() {
+            //showToastMsg("TTSPlayStateListener : TTS play end");
+        }
+
+        @Override
+        public void playStart() {
+            //showToastMsg("TTSPlayStateListener : TTS play start");
+        }
+    };
+
+
+    private void routeplanToNavi(double mlongitude,double mlatitude,double elongitude,double elatitude,String eaddress) {
+        BNRoutePlanNode sNode = null;
+        BNRoutePlanNode eNode = null;
+        Log.d(TAG, "routeplanToNavi() == > mlongitude ("+mlongitude+"), mlatitude ("+mlatitude+"), elongitude ("+elongitude+"), elatitude ("+elatitude+") eaddress ("+eaddress+")");
+        //sNode = new BNRoutePlanNode(116.30784537597782, 40.057009624099436, "百度大厦", null, coType);
+        sNode = new BNRoutePlanNode(mlongitude,mlatitude , "我的位置", null, coType);
+        eNode = new BNRoutePlanNode(elongitude, elatitude, eaddress, null, coType);
+
+        if (sNode != null && eNode != null) {
+            List<BNRoutePlanNode> list = new ArrayList<BNRoutePlanNode>();
+            list.add(sNode);
+            list.add(eNode);
+            BaiduNaviManager.getInstance().launchNavigator(activity, list, 1, true, new DemoRoutePlanListener(sNode));
+        }
+    }
+
+
+    public class DemoRoutePlanListener implements BaiduNaviManager.RoutePlanListener {
+
+        private BNRoutePlanNode mBNRoutePlanNode = null;
+
+        public DemoRoutePlanListener(BNRoutePlanNode node) {
+            mBNRoutePlanNode = node;
+        }
+
+        @Override
+        public void onJumpToNavigator() {
+			*//*
+			 * 设置途径点以及resetEndNode会回调该接口
+			 *//*
+
+            for (Activity ac : activityList) {
+
+                if (ac.getClass().getName().endsWith("BNDemoGuideActivity")) {
+
+                    return;
+                }
+            }
+            Intent intent = new Intent(activity, BNDemoGuideActivity.class);
+            Bundle bundle = new Bundle();
+            bundle.putSerializable(ROUTE_PLAN_NODE, (BNRoutePlanNode) mBNRoutePlanNode);
+            intent.putExtras(bundle);
+            activity.startActivity(intent);
+
+        }
+
+        @Override
+        public void onRoutePlanFailed() {
+            // TODO Auto-generated method stub
+            //Toast.makeText(activity, "算路失败", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "onRoutePlanFailed() == >算路失败");
+        }
+    }*/
+
+
+
+    /**
+     * 启动百度地图导航(Native)
+     */
+    public void startNavi(double mLat1,double mLon1,double mLat2,double mLon2,String eaddress) {
+        ((HomeActivity)mactivity).dismissLoadingDialog();
+        LatLng pt1 = new LatLng(mLat1, mLon1);
+        LatLng pt2 = new LatLng(mLat2, mLon2);
+
+      /*  // 构建 导航参数
+        NaviParaOption para = new NaviParaOption();
+                para.startPoint(pt1).startName("我的位置").endName(eaddress);*/
+      /*  if (!(elongitude == 0.0) && !(elatitude ==0.0)) {
+            //para.endPoint(pt2);
+        }
+            para.endName(eaddress);*/
+
+        // 构建 route搜索参数
+        RouteParaOption para = new RouteParaOption()
+                .startPoint(pt1)
+//            .startName("天安门")
+//            .endPoint(ptEnd);
+                .endName(eaddress);
+        // .cityName("西安");
+
+       /* try {
+            //BaiduMapNavigation.openBaiduMapNavi(para, mcontext);
+            BaiduMapRoutePlan.openBaiduMapDrivingRoute(para, mcontext);
+        } catch (BaiduMapAppNotSupportNaviException e) {
+            e.printStackTrace();
+            showDialog();
+        }*/
+
+
+        //移动APP调起Android百度地图方式举例
+        Log.d(TAG,"startNavi() eaddress is ("+eaddress+")");
+        Intent intent = null;
+        try {
+            //intent = Intent.getIntent("intent://map/direction?origin=latlng:34.264642646862,108.95108518068|name:我家&destination=大雁塔&mode=driving&region=西安&src=thirdapp.navi.yourCompanyName.yourAppName#Intent;scheme=bdapp;package=com.baidu.BaiduMap;end");
+            intent = Intent.getIntent("intent://map/direction?origin=latlng:"+mLat1+","+mLon1+"|name:我的位置&destination="+eaddress+"&mode=transit&src=thirdapp.navi.service.lenovo.com.getuipushtest#Intent;scheme=bdapp;package=com.baidu.BaiduMap;end");
+            //intent = Intent.getIntent("intent://map/direction?origin=latlng:"+mLat1+","+mLat2+"|name:我的位置&destination="+eaddress+"&mode=driving&&referer=Autohome|GasStation#Intent;scheme=bdapp;package=com.baidu.BaiduMap;end");
+            if (intent.resolveActivity(mcontext.getPackageManager()) != null) {
+                mactivity.startActivity(intent); //启动调用
+           Log.e("GasStation", "百度地图客户端已经安装");
+        } else {
+                //http://map.baidu.com/mobile/webapp/
+                //http://api.map.baidu.com/direction?origin=latlng:34.264642646862,108.95108518068|name:我家&destination=大雁塔&mode=driving&sr;
+                //http://map.baidu.com/mobile/webapp/drive/list/qt=nav&sn=en=&sc=&ec=&c=&pn=&rn=&searchFlag=transit&version=3&wm=1&rindex=0/vt=map&traffic=off&evtson=off
+                //String amapsrt = "http://api.map.baidu.com/direction?origin=latlng:34.264642646862,108.95108518068|name:我家&destination=大雁塔&mode=driving&region=西安&output=html&src=HomeDelivery";
+                String amapsrt = "http://api.map.baidu.com/direction?origin=latlng:+"+mLat1+","+mLon1+"|name:我的位置&destination="+eaddress+"&mode=transit&region=中国&output=html&src=HomeDelivery";
+                Uri uri = Uri.parse(amapsrt);
+              Intent  inte = new Intent(Intent.ACTION_VIEW,uri);
+                if(inte.resolveActivity(mcontext.getPackageManager()) != null)
+                mactivity.startActivity(inte);
+                else
+                Toast.makeText(mcontext,"请安装百度地图",Toast.LENGTH_SHORT).show();
+            Log.e("GasStation", "没有安装百度地图客户端");
+        }
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            showDialog();
+        }
+    }
+
+    /**
+     * 判定是否装有地图APP
+     * @param packageName
+     * @return
+     */
+    private boolean isInstallPackage(String packageName) {
+        return new File("/data/data/" + packageName).exists();
+    }
+
+
+        /**
+         * 提示未安装百度地图app或app版本过低
+         */
+    public void showDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(mcontext);
+        builder.setMessage("您尚未安装百度地图app或app版本过低，点击确认安装？");
+        builder.setTitle("提示");
+        builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+                OpenClientUtil.getLatestBaiduMapApp(mcontext);
+            }
+        });
+
+        builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+
+        builder.create().show();
+
+    }
+
+
+
+    @TargetApi(23)
+    private void getPersimmions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            ArrayList<String> permissions = new ArrayList<String>();
+            /***
+             * 定位权限为必须权限，用户如果禁止，则每次进入都会申请
+             */
+            // 定位精确位置
+            if (mcontext.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(android.Manifest.permission.ACCESS_FINE_LOCATION);
+            }
+            if (mcontext.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(android.Manifest.permission.ACCESS_COARSE_LOCATION);
+            }
+			/*
+			 * 读写权限和电话状态权限非必要权限(建议授予)只会申请一次，用户同意或者禁止，只会弹一次
+			 */
+            // 读写权限
+            if (addPermission(permissions, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                permissionInfo += "Manifest.permission.WRITE_EXTERNAL_STORAGE Deny \n";
+            }
+            // 读取电话状态权限
+            if (addPermission(permissions, android.Manifest.permission.READ_PHONE_STATE)) {
+                permissionInfo += "Manifest.permission.READ_PHONE_STATE Deny \n";
+            }
+
+            if (permissions.size() > 0) {
+                requestPermissions(mactivity, permissions.toArray(new String[permissions.size()]), SDK_PERMISSION_REQUEST);
+            }
+        }
+    }
+
+    @TargetApi(23)
+    private boolean addPermission(ArrayList<String> permissionsList, String permission) {
+        if (mcontext.checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) { // 如果应用没有获得对应权限,则添加到列表中,准备批量申请
+            if (shouldShowRequestPermissionRationale(mactivity, permission)) {
+                return true;
+            } else {
+                permissionsList.add(permission);
+                return false;
+            }
+
+        } else {
+            return true;
+        }
+    }
+}

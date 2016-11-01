@@ -1,0 +1,204 @@
+package com.lenovo.service.activity;
+
+import android.Manifest;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.Build;
+import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
+import android.util.Log;
+import android.view.KeyEvent;
+import android.view.WindowManager;
+
+import com.igexin.sdk.PushManager;
+import com.lenovo.service.R;
+import com.lenovo.service.activity.manager.ActivityCollector;
+import com.lenovo.service.entity.base.LoginData;
+import com.lenovo.service.http.HttpClientManager;
+import com.lenovo.service.http.callback.adapter.JsonHttpCallBack;
+import com.lenovo.service.push.PushBoradCastReceiver;
+
+import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Created by shengtao
+ * on 2016/7/21
+ * 16:48
+ */
+public class HomeActivity extends BaseFragmentActivity {
+    /**
+     * 个推start,第三方应用Master Secret
+     */
+    private static final String MASTERSECRET = "g44Yu3rG9o5rouzmqb6VP8";
+    private static final int REQUEST_PERMISSION = 0;
+    private static final int ADDTAG = 100;//添加Tag
+    private static final int VERSION = 101;//当前版本
+    private static final int SILENTTIME = 102;//设置静默时间
+    private static final int EXIT = 103;//退出
+    private static final int GETCLIENTID = 106;//手动获取CID
+    /**
+     * SDK服务是否启动
+     */
+    private SimpleDateFormat formatter;
+    // SDK参数，会自动从Manifest文件中读取，第三方无需修改下列变量，请修改AndroidManifest.xml文件中相应的meta-data信息。
+    // 修改方式参见个推SDK文档
+    private String appkey = "";
+    private String appsecret = "";
+    private String appid = "";
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+        super.onCreate(savedInstanceState);
+        ActivityCollector.addActivity(this);
+        setContentView(R.layout.activity_home);
+        getManifestParam();
+        initPushSDK();
+        postWithModelCallBack();
+//        handToolBar();
+    }
+
+    public void postWithModelCallBack() {
+        Map<String, String> params = new HashMap<String, String>();
+        params.put("user_code", "c47018");
+        params.put("password", "1234qwer");
+        params.put("mei_id", "xyz");
+        params.put("app_version", "1.0.0");
+        params.put("machine_name", "联想100");
+        params.put("client_id", "d2d7d419e75e9e51e9c86c5ece0bfc8f");
+        HttpClientManager.post("http://10.118.0.130:8100/api/login", params, new JsonHttpCallBack<LoginData>() {
+            @Override
+            public void onSuccess(LoginData result) {
+                Log.e("test", "aaaaa");
+            }
+
+            @Override
+            public void onError(Exception e) {
+                Log.e("test", "bbbbb");
+            }
+        });
+    }
+
+    private void getManifestParam() {
+        formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        // 从AndroidManifest.xml的meta-data中读取SDK配置信息
+        String packageName = getApplicationContext().getPackageName();
+        try {
+            ApplicationInfo appInfo = getPackageManager().getApplicationInfo(packageName, PackageManager.GET_META_DATA);
+            if (appInfo.metaData != null) {
+                appid = appInfo.metaData.getString("PUSH_APPID");
+                appsecret = appInfo.metaData.getString("PUSH_APPSECRET");
+                appkey = appInfo.metaData.getString("PUSH_APPKEY");
+            }
+        } catch (NameNotFoundException e) {
+            e.printStackTrace();
+        }
+
+    /*    appKeyView.setText("AppKey=" + appkey);
+        appSecretView.setText("AppSecret=" + appsecret);
+        masterSecretView.setText("MasterSecret=" + MASTERSECRET);
+        appIdView.setText("AppID=" + appid);*/
+    }
+
+    private void initPushSDK() {
+        // SDK初始化，第三方程序启动时，都要进行SDK初始化工作
+        Log.d("GetuiSdkDemo", "initializing sdk...");
+        PackageManager pkgManager = getPackageManager();
+        // 读写 sd card 权限非常重要, android6.0默认禁止的, 建议初始化之前就弹窗让用户赋予该权限
+        boolean sdCardWritePermission =
+                pkgManager.checkPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, getPackageName()) == PackageManager.PERMISSION_GRANTED;
+        // read phone state用于获取 imei 设备信息
+        boolean phoneSatePermission =
+                pkgManager.checkPermission(Manifest.permission.READ_PHONE_STATE, getPackageName()) == PackageManager.PERMISSION_GRANTED;
+        if (Build.VERSION.SDK_INT >= 23 && !sdCardWritePermission || !phoneSatePermission) {
+            Log.e("clientid-test", "1");
+            requestPermission();
+        } else {
+            // SDK初始化，第三方程序启动时，都要进行SDK初始化工作
+            Log.e("clientid-test", "2");
+            PushManager.getInstance().initialize(this.getApplicationContext());
+            //、 Log.e("clientid-test",PushManager.getInstance().getClientid(this.getApplicationContext()));
+        }
+        /**
+         * 应用未启动, 个推 service已经被唤醒,显示该时间段内离线消息
+         */
+       /* if (PushDemoReceiver.payloadData != null) {
+            tLogView.append(PushDemoReceiver.payloadData);
+        }*/
+    }
+
+    private void requestPermission() {
+        Log.e("clientid-test", "3");
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_PHONE_STATE},
+                REQUEST_PERMISSION);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode == REQUEST_PERMISSION) {
+            Log.e("clientid-test", "4");
+            if ((grantResults.length == 2 && grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED)) {
+                PushManager.getInstance().initialize(this.getApplicationContext());
+                Log.e("clientid-test", "6");
+            } else {
+                Log.e("clientid-test", "7");
+                Log.e("GetuiSdkDemo",
+                        "we highly recommend that you need to grant the special permissions before initializing the SDK, otherwise some "
+                                + "functions will not work");
+                PushManager.getInstance().initialize(this.getApplicationContext());
+            }
+        } else {
+            Log.e("clientid-test", "5");
+            onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        Log.d("GetuiSdkDemo", "onDestroy()");
+        PushBoradCastReceiver.payloadData.delete(0, PushBoradCastReceiver.payloadData.length());
+        super.onDestroy();
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            // 返回键最小化程序
+            Intent intent = new Intent(Intent.ACTION_MAIN);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.addCategory(Intent.CATEGORY_HOME);
+            startActivity(intent);
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    public boolean isNetworkConnected() {
+        // 判断网络是否连接
+        ConnectivityManager mConnectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo mNetworkInfo = mConnectivityManager.getActiveNetworkInfo();
+        return mNetworkInfo != null && mNetworkInfo.isAvailable();
+    }
+
+    private void setSilentTime() {
+        //设置beginHour为15，Duration为10小时，则在15:00-次日1:00这10个小时内SDK将不会联网。
+        int beginHour = 15;
+        int durationHour = 10;
+        boolean result = PushManager.getInstance().setSilentTime(this, beginHour, durationHour);
+    }
+
+    public static void goHomeActivity(Context context, boolean isNewTask) {
+        Intent homeIntent = new Intent(context, HomeActivity.class);
+        if (isNewTask) {
+            homeIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); //在广播接受者中启动活动需要添加这个标志
+        }
+        context.startActivity(homeIntent);
+    }
+}
